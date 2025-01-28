@@ -1,0 +1,249 @@
+package main
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestGetInt32(t *testing.T) {
+	tests := []struct {
+		name      string
+		pageData  []byte
+		offset    int
+		want      int32
+		expectErr error
+	}{
+		{
+			name:      "valid offset",
+			pageData:  []byte{0x00, 0x00, 0x00, 0x01},
+			offset:    0,
+			want:      1,
+			expectErr: nil,
+		},
+		{
+			name:      "out of bounds offset",
+			pageData:  []byte{0x00, 0x00, 0x00, 0x01},
+			offset:    2,
+			want:      0,
+			expectErr: ErrOutOfBounds,
+		},
+		{
+			name:      "negative offset",
+			pageData:  []byte{0x00, 0x00, 0x00, 0x01},
+			offset:    -1,
+			want:      0,
+			expectErr: ErrOutOfBounds,
+		},
+		{
+			name:      "negative number",
+			pageData:  []byte{0xff, 0xff, 0xff, 0xff},
+			offset:    0,
+			want:      -1,
+			expectErr: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := &Page{buf: tt.pageData}
+			got, err := p.GetInt32(tt.offset)
+			assert.Equal(t, tt.expectErr, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestGetInt32_continuous(t *testing.T) {
+	pagedata := []byte{
+		0x00, 0x00, 0x00, 0x01,
+		0x00, 0x00, 0x00, 0x02,
+		0x00, 0x00, 0x00, 0x03,
+	}
+	p := &Page{buf: pagedata}
+
+	for i := 1; i < 4; i++ {
+		offset := (i - 1) * 4
+		got, err := p.GetInt32(offset)
+		assert.NoError(t, err)
+		assert.Equal(t, int32(i), got)
+	}
+}
+func TestSetInt32(t *testing.T) {
+	tests := []struct {
+		name      string
+		pagesize  int
+		offset    int
+		value     int32
+		want      []byte
+		expectErr error
+	}{
+		{
+			name:      "valid set",
+			pagesize:  4,
+			offset:    0,
+			value:     1,
+			want:      []byte{0x00, 0x00, 0x00, 0x01},
+			expectErr: nil,
+		},
+		{
+			name:      "enougth buffer",
+			pagesize:  8,
+			offset:    0,
+			value:     1,
+			want:      []byte{0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00},
+			expectErr: nil,
+		},
+		{
+			name:      "enougth buffer with offset",
+			pagesize:  8,
+			offset:    4,
+			value:     1,
+			want:      []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01},
+			expectErr: nil,
+		},
+		{
+			name:      "buffer too small",
+			pagesize:  2,
+			offset:    0,
+			value:     1,
+			want:      []byte{0x00, 0x00},
+			expectErr: ErrOutOfBounds,
+		},
+		{
+			name:      "negative number",
+			pagesize:  4,
+			offset:    0,
+			value:     -1,
+			want:      []byte{0xff, 0xff, 0xff, 0xff},
+			expectErr: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewPage(tt.pagesize)
+			err := p.SetInt32(tt.offset, tt.value)
+			assert.Equal(t, tt.expectErr, err)
+			assert.Equal(t, tt.want, p.buf)
+		})
+	}
+}
+
+func TestGetBytes(t *testing.T) {
+	tests := []struct {
+		name      string
+		pageData  []byte
+		offset    int
+		want      []byte
+		expectErr error
+	}{
+		{
+			name:      "valid get",
+			pageData:  []byte{0x00, 0x00, 0x00, 0x04, 0x01, 0x02, 0x03, 0x04},
+			offset:    0,
+			want:      []byte{0x01, 0x02, 0x03, 0x04},
+			expectErr: nil,
+		},
+		{
+			name: "valid get with offset",
+			pageData: []byte{
+				0x00, 0x00, 0x00, 0x02, 0x01, 0x02,
+				0x00, 0x00, 0x00, 0x02, 0x03, 0x04,
+			},
+			offset:    6,
+			want:      []byte{0x03, 0x04},
+			expectErr: nil,
+		},
+		{
+			name:      "out of bounds offset",
+			pageData:  []byte{0x01, 0x02, 0x03, 0x04},
+			offset:    2,
+			want:      []byte{},
+			expectErr: ErrOutOfBounds,
+		},
+		{
+			name:      "overflow data",
+			pageData:  []byte{0x00, 0xff, 0xff, 0xff, 0x01},
+			offset:    0,
+			want:      []byte{},
+			expectErr: ErrOutOfBounds,
+		},
+		{
+			name:      "negative offset",
+			pageData:  []byte{0x01, 0x02, 0x03, 0x04},
+			offset:    -1,
+			want:      []byte{},
+			expectErr: ErrOutOfBounds,
+		},
+		{
+			name:      "negative length",
+			pageData:  []byte{0xff, 0xff, 0xff, 0xff, 0x01},
+			offset:    0,
+			want:      []byte{},
+			expectErr: ErrOutOfBounds,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := &Page{buf: tt.pageData}
+			got, err := p.GetBytes(tt.offset)
+			assert.Equal(t, tt.expectErr, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestSetBytes(t *testing.T) {
+	tests := []struct {
+		name      string
+		pagesize  int
+		offset    int
+		input     []byte
+		want      []byte
+		expectErr error
+	}{
+		{
+			name:      "valid set",
+			pagesize:  8,
+			offset:    0,
+			input:     []byte{0x01, 0x02, 0x03},
+			want:      []byte{0x00, 0x00, 0x00, 0x03, 0x01, 0x02, 0x03, 0x00},
+			expectErr: nil,
+		},
+		{
+			name:      "valid set with offset",
+			pagesize:  12,
+			offset:    4,
+			input:     []byte{0x01, 0x02, 0x03},
+			want:      []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x01, 0x02, 0x03, 0x00},
+			expectErr: nil,
+		},
+		{
+			name:      "buffer too small",
+			pagesize:  2,
+			offset:    1,
+			input:     []byte{0x01, 0x02, 0x03},
+			want:      []byte{0x00, 0x00},
+			expectErr: ErrOutOfBounds,
+		},
+		{
+			name:      "negative offset",
+			pagesize:  10,
+			offset:    -1,
+			input:     []byte{0x01, 0x02, 0x03},
+			want:      []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+			expectErr: ErrOutOfBounds,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewPage(tt.pagesize)
+			err := p.SetBytes(tt.offset, tt.input)
+			assert.Equal(t, tt.expectErr, err)
+			assert.Equal(t, tt.want, p.buf)
+		})
+	}
+}
