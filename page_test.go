@@ -12,6 +12,7 @@ func TestGetInt32(t *testing.T) {
 		pageData  []byte
 		offset    int
 		want      int32
+		cursor    int
 		expectErr error
 	}{
 		{
@@ -19,6 +20,7 @@ func TestGetInt32(t *testing.T) {
 			pageData:  []byte{0x00, 0x00, 0x00, 0x01},
 			offset:    0,
 			want:      1,
+			cursor:    4,
 			expectErr: nil,
 		},
 		{
@@ -26,6 +28,7 @@ func TestGetInt32(t *testing.T) {
 			pageData:  []byte{0x00, 0x00, 0x00, 0x01},
 			offset:    2,
 			want:      0,
+			cursor:    0,
 			expectErr: ErrOutOfBounds,
 		},
 		{
@@ -33,6 +36,7 @@ func TestGetInt32(t *testing.T) {
 			pageData:  []byte{0x00, 0x00, 0x00, 0x01},
 			offset:    -1,
 			want:      0,
+			cursor:    0,
 			expectErr: ErrOutOfBounds,
 		},
 		{
@@ -40,6 +44,7 @@ func TestGetInt32(t *testing.T) {
 			pageData:  []byte{0xff, 0xff, 0xff, 0xff},
 			offset:    0,
 			want:      -1,
+			cursor:    4,
 			expectErr: nil,
 		},
 	}
@@ -50,6 +55,7 @@ func TestGetInt32(t *testing.T) {
 			got, err := p.GetInt32(tt.offset)
 			assert.Equal(t, tt.expectErr, err)
 			assert.Equal(t, tt.want, got)
+			assert.Equal(t, tt.cursor, p.cursor)
 		})
 	}
 }
@@ -63,8 +69,7 @@ func TestGetInt32_continuous(t *testing.T) {
 	p := &Page{buf: pagedata}
 
 	for i := 1; i < 4; i++ {
-		offset := (i - 1) * 4
-		got, err := p.GetInt32(offset)
+		got, err := p.GetInt32(0)
 		assert.NoError(t, err)
 		assert.Equal(t, int32(i), got)
 	}
@@ -75,6 +80,7 @@ func TestSetInt32(t *testing.T) {
 		pagesize  int
 		offset    int
 		value     int32
+		cursor    int
 		want      []byte
 		expectErr error
 	}{
@@ -83,6 +89,7 @@ func TestSetInt32(t *testing.T) {
 			pagesize:  4,
 			offset:    0,
 			value:     1,
+			cursor:    4,
 			want:      []byte{0x00, 0x00, 0x00, 0x01},
 			expectErr: nil,
 		},
@@ -91,6 +98,7 @@ func TestSetInt32(t *testing.T) {
 			pagesize:  8,
 			offset:    0,
 			value:     1,
+			cursor:    4,
 			want:      []byte{0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00},
 			expectErr: nil,
 		},
@@ -99,6 +107,7 @@ func TestSetInt32(t *testing.T) {
 			pagesize:  8,
 			offset:    4,
 			value:     1,
+			cursor:    8,
 			want:      []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01},
 			expectErr: nil,
 		},
@@ -107,6 +116,7 @@ func TestSetInt32(t *testing.T) {
 			pagesize:  2,
 			offset:    0,
 			value:     1,
+			cursor:    0,
 			want:      []byte{0x00, 0x00},
 			expectErr: ErrOutOfBounds,
 		},
@@ -115,6 +125,7 @@ func TestSetInt32(t *testing.T) {
 			pagesize:  4,
 			offset:    0,
 			value:     -1,
+			cursor:    4,
 			want:      []byte{0xff, 0xff, 0xff, 0xff},
 			expectErr: nil,
 		},
@@ -126,8 +137,23 @@ func TestSetInt32(t *testing.T) {
 			err := p.SetInt32(tt.offset, tt.value)
 			assert.Equal(t, tt.expectErr, err)
 			assert.Equal(t, tt.want, p.buf)
+			assert.Equal(t, tt.cursor, p.cursor)
 		})
 	}
+}
+
+func TestSetInt32_continuous(t *testing.T) {
+	p := NewPage(16)
+
+	for i := 1; i < 5; i++ {
+		err := p.SetInt32(0, int32(i))
+		assert.NoError(t, err)
+		assert.Equal(t, i*4, p.cursor)
+	}
+	assert.Equal(t, []byte{
+		0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02,
+		0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x04,
+	}, p.buf)
 }
 
 func TestGetBytes(t *testing.T) {
@@ -135,6 +161,7 @@ func TestGetBytes(t *testing.T) {
 		name      string
 		pageData  []byte
 		offset    int
+		cursor    int
 		want      []byte
 		expectErr error
 	}{
@@ -142,6 +169,7 @@ func TestGetBytes(t *testing.T) {
 			name:      "valid get",
 			pageData:  []byte{0x00, 0x00, 0x00, 0x04, 0x01, 0x02, 0x03, 0x04},
 			offset:    0,
+			cursor:    8,
 			want:      []byte{0x01, 0x02, 0x03, 0x04},
 			expectErr: nil,
 		},
@@ -152,6 +180,7 @@ func TestGetBytes(t *testing.T) {
 				0x00, 0x00, 0x00, 0x02, 0x03, 0x04,
 			},
 			offset:    6,
+			cursor:    12,
 			want:      []byte{0x03, 0x04},
 			expectErr: nil,
 		},
@@ -159,6 +188,7 @@ func TestGetBytes(t *testing.T) {
 			name:      "out of bounds offset",
 			pageData:  []byte{0x01, 0x02, 0x03, 0x04},
 			offset:    2,
+			cursor:    0,
 			want:      []byte{},
 			expectErr: ErrOutOfBounds,
 		},
@@ -166,6 +196,7 @@ func TestGetBytes(t *testing.T) {
 			name:      "overflow data",
 			pageData:  []byte{0x00, 0xff, 0xff, 0xff, 0x01},
 			offset:    0,
+			cursor:    0,
 			want:      []byte{},
 			expectErr: ErrOutOfBounds,
 		},
@@ -173,6 +204,7 @@ func TestGetBytes(t *testing.T) {
 			name:      "negative offset",
 			pageData:  []byte{0x01, 0x02, 0x03, 0x04},
 			offset:    -1,
+			cursor:    0,
 			want:      []byte{},
 			expectErr: ErrOutOfBounds,
 		},
@@ -180,6 +212,7 @@ func TestGetBytes(t *testing.T) {
 			name:      "negative length",
 			pageData:  []byte{0xff, 0xff, 0xff, 0xff, 0x01},
 			offset:    0,
+			cursor:    0,
 			want:      []byte{},
 			expectErr: ErrOutOfBounds,
 		},
@@ -201,6 +234,7 @@ func TestSetBytes(t *testing.T) {
 		pagesize  int
 		offset    int
 		input     []byte
+		cursor    int
 		want      []byte
 		expectErr error
 	}{
@@ -209,6 +243,7 @@ func TestSetBytes(t *testing.T) {
 			pagesize:  8,
 			offset:    0,
 			input:     []byte{0x01, 0x02, 0x03},
+			cursor:    7,
 			want:      []byte{0x00, 0x00, 0x00, 0x03, 0x01, 0x02, 0x03, 0x00},
 			expectErr: nil,
 		},
@@ -217,6 +252,7 @@ func TestSetBytes(t *testing.T) {
 			pagesize:  12,
 			offset:    4,
 			input:     []byte{0x01, 0x02, 0x03},
+			cursor:    11,
 			want:      []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x01, 0x02, 0x03, 0x00},
 			expectErr: nil,
 		},
@@ -225,6 +261,7 @@ func TestSetBytes(t *testing.T) {
 			pagesize:  2,
 			offset:    1,
 			input:     []byte{0x01, 0x02, 0x03},
+			cursor:    0,
 			want:      []byte{0x00, 0x00},
 			expectErr: ErrOutOfBounds,
 		},
@@ -233,6 +270,7 @@ func TestSetBytes(t *testing.T) {
 			pagesize:  10,
 			offset:    -1,
 			input:     []byte{0x01, 0x02, 0x03},
+			cursor:    0,
 			want:      []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 			expectErr: ErrOutOfBounds,
 		},
@@ -246,4 +284,18 @@ func TestSetBytes(t *testing.T) {
 			assert.Equal(t, tt.want, p.buf)
 		})
 	}
+}
+
+func TestSetBytes_continuous(t *testing.T) {
+	p := NewPage(16)
+
+	for i := 1; i < 3; i++ {
+		err := p.SetBytes(0, []byte("hoge"))
+		assert.NoError(t, err)
+		assert.Equal(t, i*8, p.cursor)
+	}
+	assert.Equal(t, []byte{
+		0x00, 0x00, 0x00, 0x04, 0x68, 0x6f, 0x67, 0x65,
+		0x00, 0x00, 0x00, 0x04, 0x68, 0x6f, 0x67, 0x65,
+	}, p.buf)
 }
