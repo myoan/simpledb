@@ -72,3 +72,58 @@ func (lm *LogManager) Append(record []byte) (int, error) {
 	lm.page.SetBytes(0, record)
 	return len(record) + 4, nil
 }
+
+func (lm *LogManager) Iterator() (*LogIterator, error) {
+	return NewLogIterator(lm.fileMng, lm.currentBlk)
+}
+
+type LogIterator struct {
+	fileMng    *FileManager
+	bid        *BlockID
+	page       *Page
+	currentPos int
+	boundary   int
+}
+
+func NewLogIterator(fm *FileManager, bid *BlockID) (*LogIterator, error) {
+	page := NewPage(fm.Blocksize)
+	fm.Read(bid, page)
+	b, err := page.GetInt32(0)
+	if err != nil {
+		return nil, err
+	}
+
+	return &LogIterator{
+		fileMng:    fm,
+		bid:        bid,
+		page:       page,
+		currentPos: int(b),
+		boundary:   int(b),
+	}, nil
+}
+
+func (i *LogIterator) HasNext() bool {
+	return i.currentPos < i.fileMng.Blocksize || i.bid.Num > 0
+}
+
+func (i *LogIterator) Next() ([]byte, error) {
+	if i.currentPos >= i.fileMng.Blocksize {
+		// iterates order from the last block to the first block
+		nextBid := NewBlockID(i.bid.Filename, i.bid.Num-1)
+		i.fileMng.Read(nextBid, i.page)
+		b, err := i.page.GetInt32(0)
+		if err != nil {
+			return nil, err
+		}
+
+		i.currentPos = int(b)
+		i.boundary = int(b)
+	}
+	result, err := i.page.GetBytes(i.currentPos)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	i.currentPos += len(result) + 4
+	return result, nil
+}
