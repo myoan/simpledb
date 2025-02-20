@@ -16,7 +16,7 @@ func main() {
 	slog.Info("simpledb started", slog.Int("blocksize", blksize))
 
 	mng := NewFileManager(blksize)
-	bid := NewBlock("test", 0)
+	block := NewBlock("test", 0)
 	page := NewPage(mng.Blocksize)
 	page.SetString(0, "Hello, World!")
 	data, err := page.GetString(0)
@@ -24,8 +24,8 @@ func main() {
 		panic(err)
 	}
 	fmt.Printf("Read from memory: %s\n", data)
-	mng.Write(bid, page)
-	mng.Read(bid, page)
+	mng.Write(block, page)
+	mng.Read(block, page)
 	data, err = page.GetString(0)
 	if err != nil {
 		panic(err)

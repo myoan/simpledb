@@ -50,9 +50,9 @@ func NewBufferManager(fm *FileManager, lm *LogManager, bufCnt int, opts ...Buffe
 	return mng
 }
 
-func (bm *BufferManager) GetBuf(bid *Block) (*Buffer, error) {
+func (bm *BufferManager) GetBuf(block *Block) (*Buffer, error) {
 	for _, buf := range bm.pool {
-		if buf.block != nil && buf.block.Equals(bid) {
+		if buf.block != nil && buf.block.Equals(block) {
 			return buf, nil
 		}
 	}
@@ -68,10 +68,10 @@ func (bm *BufferManager) FlushAll(txnum int) {
 }
 
 // Pin 指定したblockをbufferに読み込む
-func (bm *BufferManager) Pin(bid Block) (*Buffer, error) {
+func (bm *BufferManager) Pin(block Block) (*Buffer, error) {
 	// check if the block is already in the buffer pool
 	for _, bp := range bm.pool {
-		if bp.block != nil && bp.block.Equals(&bid) {
+		if bp.block != nil && bp.block.Equals(&block) {
 			if bp.IsPinned() {
 				// allocate another buffer
 				return bp, nil
@@ -96,7 +96,7 @@ func (bm *BufferManager) Pin(bid Block) (*Buffer, error) {
 		for _, buf := range bm.pool {
 			if !buf.IsPinned() {
 				buf.Flush()
-				buf.block = &bid
+				buf.block = &block
 				buf.Pin()
 				return buf, nil
 			}

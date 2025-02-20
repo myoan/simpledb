@@ -16,26 +16,26 @@ func NewFileManager(blocksize int) *FileManager {
 	}
 }
 
-func (fm *FileManager) Read(bid *Block, page *Page) error {
-	f, err := os.Open(bid.Filename)
+func (fm *FileManager) Read(block *Block, page *Page) error {
+	f, err := os.Open(block.Filename)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	_, err = f.ReadAt(page.buf, int64(bid.Num)*int64(fm.Blocksize))
+	_, err = f.ReadAt(page.buf, int64(block.Num)*int64(fm.Blocksize))
 	return err
 }
 
-func (fm *FileManager) Write(bid *Block, page *Page) error {
-	slog.Info("FileManager.Write", slog.String("bid", bid.Filename), slog.Int("num", bid.Num))
-	f, err := os.OpenFile(bid.Filename, os.O_CREATE|os.O_WRONLY, 0644)
+func (fm *FileManager) Write(block *Block, page *Page) error {
+	slog.Info("FileManager.Write", slog.String("block", block.Filename), slog.Int("num", block.Num))
+	f, err := os.OpenFile(block.Filename, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	_, err = f.WriteAt(page.buf, int64(bid.Num)*int64(fm.Blocksize))
+	_, err = f.WriteAt(page.buf, int64(block.Num)*int64(fm.Blocksize))
 	return err
 }
 
@@ -73,19 +73,19 @@ func (fm *FileManager) Length(filename string) (int, error) {
 	return int(info.Size()) / fm.Blocksize, err
 }
 
-func (fm *FileManager) Dump(bid *Block) error {
-	f, err := os.Open(bid.Filename)
+func (fm *FileManager) Dump(block *Block) error {
+	f, err := os.Open(block.Filename)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
 	buf := make([]byte, fm.Blocksize)
-	_, err = f.ReadAt(buf, int64(bid.Num)*int64(fm.Blocksize))
+	_, err = f.ReadAt(buf, int64(block.Num)*int64(fm.Blocksize))
 	if err != nil {
 		return err
 	}
 
-	slog.Info("FileManager.Dump", slog.String("filename", bid.Filename), slog.Int("num", bid.Num), slog.String("data", string(buf)))
+	slog.Info("FileManager.Dump", slog.String("filename", block.Filename), slog.Int("num", block.Num), slog.String("data", string(buf)))
 	return nil
 }

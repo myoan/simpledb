@@ -51,7 +51,7 @@ func NewLogManager(fm *FileManager, filename string) (*LogManager, error) {
 }
 
 func (lm *LogManager) appendNewBlock() (*Block, error) {
-	bid, err := lm.fileMng.Append(lm.fileName)
+	block, err := lm.fileMng.Append(lm.fileName)
 	if err != nil {
 		return nil, err
 	}
@@ -61,12 +61,12 @@ func (lm *LogManager) appendNewBlock() (*Block, error) {
 		return nil, err
 	}
 
-	err = lm.fileMng.Write(bid, lm.page)
+	err = lm.fileMng.Write(block, lm.page)
 	if err != nil {
 		return nil, err
 	}
 
-	return bid, nil
+	return block, nil
 }
 
 func (lm *LogManager) Flush(lsn int) error {
@@ -85,15 +85,15 @@ func (lm *LogManager) Iterator() (*LogIterator, error) {
 
 type LogIterator struct {
 	fileMng    *FileManager
-	bid        *Block
+	block      *Block
 	page       *Page
 	currentPos int
 	boundary   int
 }
 
-func NewLogIterator(fm *FileManager, bid *Block) (*LogIterator, error) {
+func NewLogIterator(fm *FileManager, block *Block) (*LogIterator, error) {
 	page := NewPage(fm.Blocksize)
-	fm.Read(bid, page)
+	fm.Read(block, page)
 	b, err := page.GetInt32(0)
 	if err != nil {
 		return nil, err
@@ -101,7 +101,7 @@ func NewLogIterator(fm *FileManager, bid *Block) (*LogIterator, error) {
 
 	return &LogIterator{
 		fileMng:    fm,
-		bid:        bid,
+		block:      block,
 		page:       page,
 		currentPos: int(b),
 		boundary:   int(b),
@@ -109,15 +109,15 @@ func NewLogIterator(fm *FileManager, bid *Block) (*LogIterator, error) {
 }
 
 func (i *LogIterator) HasNext() bool {
-	return i.currentPos < i.fileMng.Blocksize || i.bid.Num > 0
+	return i.currentPos < i.fileMng.Blocksize || i.block.Num > 0
 }
 
 // Next returns the next log record order by last to first
 func (i *LogIterator) Next() ([]byte, error) {
 	if i.currentPos >= i.fileMng.Blocksize {
 		// iterates order from the last block to the first block
-		nextBid := NewBlock(i.bid.Filename, i.bid.Num-1)
-		i.fileMng.Read(nextBid, i.page)
+		nextblock := NewBlock(i.block.Filename, i.block.Num-1)
+		i.fileMng.Read(nextblock, i.page)
 		b, err := i.page.GetInt32(0)
 		if err != nil {
 			return nil, err

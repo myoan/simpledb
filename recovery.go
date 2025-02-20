@@ -108,7 +108,7 @@ func (rm *RecoveryManager) Recover() error {
 	return nil
 }
 
-func (rm *RecoveryManager) SetInt32(bid *Block, offset int, oldv, newv int32) (int, error) {
+func (rm *RecoveryManager) SetInt32(block *Block, offset int, oldv, newv int32) (int, error) {
 	// <SETINT32, txid, filename, blknum, offset, oldvalue, newvalue>
 
 	return 0, nil
