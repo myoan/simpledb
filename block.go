@@ -7,6 +7,7 @@ type Block struct {
 	Num      int
 }
 
+// NewBlock creates a new Block
 func NewBlock(filename string, num int) *Block {
 	return &Block{
 		Filename: filename,
@@ -14,14 +15,17 @@ func NewBlock(filename string, num int) *Block {
 	}
 }
 
+// Equals returns true if the block is equal to the other block
 func (b *Block) Equals(other *Block) bool {
 	return b.Filename == other.Filename && b.Num == other.Num
 }
 
+// ToString returns a string representation of the block
 func (b *Block) ToString() string {
-	return fmt.Sprintf("[file %s,block %d]", b.Filename, b.Num)
+	return fmt.Sprintf("%s:%d", b.Filename, b.Num)
 }
 
+// Hashcode returns a hash code for the block
 func (b *Block) Hashcode() int {
 	hash := 0
 	str := b.ToString()

@@ -68,10 +68,10 @@ func (bm *BufferManager) FlushAll(txnum int) {
 }
 
 // Pin 指定したblockをbufferに読み込む
-func (bm *BufferManager) Pin(block Block) (*Buffer, error) {
+func (bm *BufferManager) Pin(block *Block) (*Buffer, error) {
 	// check if the block is already in the buffer pool
 	for _, bp := range bm.pool {
-		if bp.block != nil && bp.block.Equals(&block) {
+		if bp.block != nil && bp.block.Equals(block) {
 			if bp.IsPinned() {
 				// allocate another buffer
 				return bp, nil
@@ -96,7 +96,7 @@ func (bm *BufferManager) Pin(block Block) (*Buffer, error) {
 		for _, buf := range bm.pool {
 			if !buf.IsPinned() {
 				buf.Flush()
-				buf.block = &block
+				buf.block = block
 				buf.Pin()
 				return buf, nil
 			}
