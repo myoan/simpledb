@@ -7,8 +7,11 @@ import (
 )
 
 func TestLogManger_Append(t *testing.T) {
-	mng := &LogManager{}
+	fm := NewFileManager(400)
+	mng, err := NewLogManager(fm, "test.db")
+	require.NoError(t, err)
+
 	lsn, err := mng.Append([]byte("Hello, World!"))
 	require.NoError(t, err)
-	require.Equal(t, len("Hello, World!"), lsn)
+	require.Equal(t, 4+len("Hello, World!"), lsn)
 }

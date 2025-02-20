@@ -16,7 +16,7 @@ func main() {
 	slog.Info("simpledb started", slog.Int("blocksize", blksize))
 
 	mng := NewFileManager(blksize)
-	bid := NewBlockID("test", 0)
+	bid := NewBlock("test", 0)
 	page := NewPage(mng.Blocksize)
 	page.SetString(0, "Hello, World!")
 	data, err := page.GetString(0)

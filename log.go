@@ -9,11 +9,17 @@ type LogManager interface {
 }
 */
 
+type Logger interface {
+	Flush(lsn int) error
+	Append(record []byte) (int, error)
+	Iterator() (*LogIterator, error)
+}
+
 type LogManager struct {
 	fileMng    *FileManager
 	fileName   string
 	page       *Page
-	currentBlk *BlockID
+	currentBlk *Block
 	currentLSN int
 	savedLSN   int
 }
@@ -30,21 +36,21 @@ func NewLogManager(fm *FileManager, filename string) (*LogManager, error) {
 		page:     NewPage(fm.Blocksize),
 	}
 
-	var currentblk *BlockID
+	var currentblk *Block
 	if loglen == 0 {
 		currentblk, err = lm.appendNewBlock()
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		currentblk = NewBlockID(filename, loglen-1)
+		currentblk = NewBlock(filename, loglen-1)
 		fm.Read(currentblk, lm.page)
 	}
 	lm.currentBlk = currentblk
 	return lm, nil
 }
 
-func (lm *LogManager) appendNewBlock() (*BlockID, error) {
+func (lm *LogManager) appendNewBlock() (*Block, error) {
 	bid, err := lm.fileMng.Append(lm.fileName)
 	if err != nil {
 		return nil, err
@@ -79,13 +85,13 @@ func (lm *LogManager) Iterator() (*LogIterator, error) {
 
 type LogIterator struct {
 	fileMng    *FileManager
-	bid        *BlockID
+	bid        *Block
 	page       *Page
 	currentPos int
 	boundary   int
 }
 
-func NewLogIterator(fm *FileManager, bid *BlockID) (*LogIterator, error) {
+func NewLogIterator(fm *FileManager, bid *Block) (*LogIterator, error) {
 	page := NewPage(fm.Blocksize)
 	fm.Read(bid, page)
 	b, err := page.GetInt32(0)
@@ -106,10 +112,11 @@ func (i *LogIterator) HasNext() bool {
 	return i.currentPos < i.fileMng.Blocksize || i.bid.Num > 0
 }
 
+// Next returns the next log record order by last to first
 func (i *LogIterator) Next() ([]byte, error) {
 	if i.currentPos >= i.fileMng.Blocksize {
 		// iterates order from the last block to the first block
-		nextBid := NewBlockID(i.bid.Filename, i.bid.Num-1)
+		nextBid := NewBlock(i.bid.Filename, i.bid.Num-1)
 		i.fileMng.Read(nextBid, i.page)
 		b, err := i.page.GetInt32(0)
 		if err != nil {
@@ -119,6 +126,7 @@ func (i *LogIterator) Next() ([]byte, error) {
 		i.currentPos = int(b)
 		i.boundary = int(b)
 	}
+
 	result, err := i.page.GetBytes(i.currentPos)
 	if err != nil {
 		return []byte{}, err

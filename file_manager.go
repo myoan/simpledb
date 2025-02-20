@@ -16,7 +16,7 @@ func NewFileManager(blocksize int) *FileManager {
 	}
 }
 
-func (fm *FileManager) Read(bid *BlockID, page *Page) error {
+func (fm *FileManager) Read(bid *Block, page *Page) error {
 	f, err := os.Open(bid.Filename)
 	if err != nil {
 		return err
@@ -27,7 +27,7 @@ func (fm *FileManager) Read(bid *BlockID, page *Page) error {
 	return err
 }
 
-func (fm *FileManager) Write(bid *BlockID, page *Page) error {
+func (fm *FileManager) Write(bid *Block, page *Page) error {
 	slog.Info("FileManager.Write", slog.String("bid", bid.Filename), slog.Int("num", bid.Num))
 	f, err := os.OpenFile(bid.Filename, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -40,13 +40,13 @@ func (fm *FileManager) Write(bid *BlockID, page *Page) error {
 }
 
 // Append appends a empty page to the end of the file
-func (fm *FileManager) Append(filename string) (*BlockID, error) {
+func (fm *FileManager) Append(filename string) (*Block, error) {
 	blklen, err := fm.Length(filename)
 	if err != nil {
 		return nil, err
 	}
 
-	blk := NewBlockID(filename, blklen)
+	blk := NewBlock(filename, blklen)
 
 	f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -73,7 +73,7 @@ func (fm *FileManager) Length(filename string) (int, error) {
 	return int(info.Size()) / fm.Blocksize, err
 }
 
-func (fm *FileManager) Dump(bid *BlockID) error {
+func (fm *FileManager) Dump(bid *Block) error {
 	f, err := os.Open(bid.Filename)
 	if err != nil {
 		return err

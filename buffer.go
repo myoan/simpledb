@@ -50,6 +50,15 @@ func NewBufferManager(fm *FileManager, lm *LogManager, bufCnt int, opts ...Buffe
 	return mng
 }
 
+func (bm *BufferManager) GetBuf(bid *Block) (*Buffer, error) {
+	for _, buf := range bm.pool {
+		if buf.block != nil && buf.block.Equals(bid) {
+			return buf, nil
+		}
+	}
+	return nil, errors.New("block not found")
+}
+
 func (bm *BufferManager) FlushAll(txnum int) {
 	for _, buf := range bm.pool {
 		if buf.ModifyingTx() == txnum {
@@ -59,10 +68,10 @@ func (bm *BufferManager) FlushAll(txnum int) {
 }
 
 // Pin 指定したblockをbufferに読み込む
-func (bm *BufferManager) Pin(bid BlockID) (*Buffer, error) {
+func (bm *BufferManager) Pin(bid Block) (*Buffer, error) {
 	// check if the block is already in the buffer pool
 	for _, bp := range bm.pool {
-		if bp.blk != nil && bp.blk.Equals(&bid) {
+		if bp.block != nil && bp.block.Equals(&bid) {
 			if bp.IsPinned() {
 				// allocate another buffer
 				return bp, nil
@@ -87,7 +96,7 @@ func (bm *BufferManager) Pin(bid BlockID) (*Buffer, error) {
 		for _, buf := range bm.pool {
 			if !buf.IsPinned() {
 				buf.Flush()
-				buf.blk = &bid
+				buf.block = &bid
 				buf.Pin()
 				return buf, nil
 			}
@@ -108,7 +117,7 @@ type Buffer struct {
 	Contents *Page
 	fm       *FileManager
 	lm       *LogManager
-	blk      *BlockID
+	block    *Block
 	pincnt   int
 	txnum    int
 	lsn      int
@@ -126,8 +135,8 @@ func NewBuffer(fm *FileManager, lm *LogManager) *Buffer {
 	}
 }
 
-func (b *Buffer) Block() *BlockID {
-	return b.blk
+func (b *Buffer) Block() *Block {
+	return b.block
 }
 
 func (b *Buffer) IsPinned() bool {
@@ -148,7 +157,7 @@ func (b *Buffer) ModifyingTx() int {
 func (b *Buffer) Flush() {
 	if b.txnum >= 0 {
 		b.lm.Flush(b.lsn)
-		b.fm.Write(b.blk, b.Contents)
+		b.fm.Write(b.block, b.Contents)
 		b.txnum = -1
 	}
 }

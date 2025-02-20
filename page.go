@@ -12,10 +12,18 @@ type Page struct {
 	cursor int
 }
 
-// NewPage returns a pointer to a new Page struct
+// NewPage returns Page struct
 func NewPage(size int) *Page {
 	return &Page{
 		buf:    make([]byte, size),
+		cursor: 0,
+	}
+}
+
+// NewPageFromBytes returns Page struct from a byte slice
+func NewPageFromBytes(b []byte) *Page {
+	return &Page{
+		buf:    b,
 		cursor: 0,
 	}
 }

@@ -15,30 +15,30 @@ func TestBufferManager_Pin(t *testing.T) {
 	var buf *Buffer
 
 	t.Run("success", func(t *testing.T) {
-		buf, err = bm.Pin(*NewBlockID("buffertest", 1))
+		buf, err = bm.Pin(*NewBlock("buffertest", 1))
 		require.NoError(t, err)
 	})
 
 	t.Run("already pinned", func(t *testing.T) {
-		_, err := bm.Pin(*NewBlockID("buffertest", 1))
+		_, err := bm.Pin(*NewBlock("buffertest", 1))
 		require.NoError(t, err)
-		_, err = bm.Pin(*NewBlockID("buffertest", 1))
+		_, err = bm.Pin(*NewBlock("buffertest", 1))
 		require.NoError(t, err)
 	})
 
 	t.Run("unpinned", func(t *testing.T) {
 		buf.Unpin()
 
-		_, err := bm.Pin(*NewBlockID("buffertest", 1))
+		_, err := bm.Pin(*NewBlock("buffertest", 1))
 		require.NoError(t, err)
 	})
 
 	t.Run("buffer pool is full", func(t *testing.T) {
-		_, err := bm.Pin(*NewBlockID("buffertest", 1))
+		_, err := bm.Pin(*NewBlock("buffertest", 1))
 		require.NoError(t, err)
-		_, err = bm.Pin(*NewBlockID("buffertest", 2))
+		_, err = bm.Pin(*NewBlock("buffertest", 2))
 		require.NoError(t, err)
-		_, err = bm.Pin(*NewBlockID("buffertest", 3))
+		_, err = bm.Pin(*NewBlock("buffertest", 3))
 		require.ErrorAs(t, err, &ErrBufferFull)
 	})
 
@@ -47,30 +47,30 @@ func TestBufferManager_Pin(t *testing.T) {
 
 func TestBuffer(t *testing.T) {
 	bm := NewBufferManager(NewFileManager(400), &LogManager{}, 3, WithFinalizeTime(100))
-	blk0 := NewBlockID("buffertest", 0)
-	blk1 := NewBlockID("buffertest", 1)
-	blk2 := NewBlockID("buffertest", 2)
-	blk3 := NewBlockID("buffertest", 3)
+	block0 := NewBlock("buffertest", 0)
+	block1 := NewBlock("buffertest", 1)
+	block2 := NewBlock("buffertest", 2)
+	block3 := NewBlock("buffertest", 3)
 
-	_, err := bm.Pin(*blk0)
+	_, err := bm.Pin(*block0)
 	require.NoError(t, err)
-	buf1, err := bm.Pin(*blk1)
+	buf1, err := bm.Pin(*block1)
 	require.NoError(t, err)
-	_, err = bm.Pin(*blk2)
+	_, err = bm.Pin(*block2)
 	require.NoError(t, err)
 
 	bm.Unpin(buf1)
 
-	_, err = bm.Pin(*blk1)
+	_, err = bm.Pin(*block1)
 	require.NoError(t, err)
-	buf2, err := bm.Pin(*blk2)
+	buf2, err := bm.Pin(*block2)
 	require.NoError(t, err)
 
-	_, err = bm.Pin(*blk3)
+	_, err = bm.Pin(*block3)
 	require.ErrorAs(t, err, &ErrBufferFull)
 
 	bm.Unpin(buf2)
 
-	_, err = bm.Pin(*blk3)
+	_, err = bm.Pin(*block3)
 	require.NoError(t, err)
 }
