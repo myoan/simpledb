@@ -1,8 +1,9 @@
-package main
+package disk
 
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 )
 
 var ErrOutOfBounds = errors.New("out of bounds")
@@ -28,6 +29,10 @@ func NewPageFromBytes(b []byte) *Page {
 	}
 }
 
+func (p *Page) Buf() []byte {
+	return p.buf
+}
+
 // GetInt32 gets the integer at the given offset
 func (p *Page) GetInt32(offset int) (int32, error) {
 	head := p.cursor + offset
@@ -35,7 +40,7 @@ func (p *Page) GetInt32(offset int) (int32, error) {
 		return 0, ErrOutOfBounds
 	}
 	raw := binary.BigEndian.Uint32(p.buf[head : head+4])
-	p.cursor += offset + 4
+	// p.cursor += offset + 4
 	return int32(raw), nil
 }
 
@@ -46,7 +51,7 @@ func (p *Page) SetInt32(offset int, n int32) error {
 		return ErrOutOfBounds
 	}
 	binary.BigEndian.PutUint32(p.buf[head:head+4], uint32(n))
-	p.cursor += offset + 4
+	// p.cursor += offset + 4
 	return nil
 }
 
@@ -56,16 +61,19 @@ func (p *Page) GetBytes(offset int) ([]byte, error) {
 	if offset < 0 || len(p.buf) < head+4 {
 		return []byte{}, ErrOutOfBounds
 	}
+	fmt.Printf("head: %d, data: %v\n", head, p.buf)
 
 	datalen := binary.BigEndian.Uint32(p.buf[offset : offset+4])
-	p.cursor += offset + 4
+	// p.cursor += offset + 4
 	head += 4
 
 	if int(datalen) < 0 || len(p.buf) < head+int(datalen) {
 		return []byte{}, ErrOutOfBounds
 	}
 
-	p.cursor += int(datalen)
+	// p.cursor += int(datalen)
+	fmt.Printf("head: %d, len: %d, data: %v\n", head, datalen, p.buf)
+	fmt.Printf("data: %v\n", p.buf[head:head+int(datalen)])
 	return p.buf[head : head+int(datalen)], nil
 }
 
@@ -77,11 +85,11 @@ func (p *Page) SetBytes(offset int, b []byte) error {
 	}
 
 	binary.BigEndian.PutUint32(p.buf[head:head+4], uint32(len(b)))
-	p.cursor += offset + 4
+	// p.cursor += offset + 4
 	head += 4
 
 	copy(p.buf[head:], b)
-	p.cursor += len(b)
+	// p.cursor += len(b)
 	return nil
 }
 

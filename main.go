@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"simpledb/disk"
+	"simpledb/log"
 )
 
 const BLOCK_SIZE = 32
@@ -15,9 +17,9 @@ func main() {
 
 	slog.Info("simpledb started", slog.Int("blocksize", blksize))
 
-	mng := NewFileManager(blksize)
-	block := NewBlock("test", 0)
-	page := NewPage(mng.Blocksize)
+	mng := disk.NewFileManager(blksize)
+	block := disk.NewBlock("test", 0)
+	page := disk.NewPage(mng.Blocksize)
 	page.SetString(0, "Hello, World!")
 	data, err := page.GetString(0)
 	if err != nil {
@@ -32,11 +34,11 @@ func main() {
 	}
 	fmt.Printf("Read from disk: %s\n", data)
 
-	lm, err := NewLogManager(mng, "test.log")
+	lm, err := log.NewLogManager(mng, "test.log")
 	if err != nil {
 		panic(err)
 	}
 
 	lm.Append([]byte("Hello, World!"))
-	lm.Flush(lm.currentLSN)
+	lm.Flush(lm.CurrentLSN)
 }

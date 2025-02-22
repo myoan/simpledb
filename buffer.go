@@ -2,6 +2,8 @@ package main
 
 import (
 	"errors"
+	"simpledb/disk"
+	"simpledb/log"
 	"time"
 )
 
@@ -9,14 +11,17 @@ const (
 	FinalizeTimeMs = 10000 // 10 seconds
 )
 
-var ErrBufferFull = errors.New("no available buffer")
+var (
+	ErrBlockNotFound = errors.New("block not found")
+	ErrBufferFull    = errors.New("no available buffer")
+)
 
 type BufferManager struct {
 	Available int
 	pool      []*Buffer
 	final     int
-	fm        *FileManager
-	lm        *LogManager
+	fm        *disk.FileManager
+	lm        *log.LogManager
 	count     int
 }
 
@@ -28,7 +33,7 @@ func WithFinalizeTime(ms int) BufferManagerOptions {
 	}
 }
 
-func NewBufferManager(fm *FileManager, lm *LogManager, bufCnt int, opts ...BufferManagerOptions) *BufferManager {
+func NewBufferManager(fm *disk.FileManager, lm *log.LogManager, bufCnt int, opts ...BufferManagerOptions) *BufferManager {
 	pool := make([]*Buffer, bufCnt)
 	for i := 0; i < bufCnt; i++ {
 		pool[i] = NewBuffer(fm, lm)
@@ -50,13 +55,13 @@ func NewBufferManager(fm *FileManager, lm *LogManager, bufCnt int, opts ...Buffe
 	return mng
 }
 
-func (bm *BufferManager) GetBuf(block *Block) (*Buffer, error) {
+func (bm *BufferManager) GetBuf(block *disk.Block) (*Buffer, error) {
 	for _, buf := range bm.pool {
 		if buf.block != nil && buf.block.Equals(block) {
 			return buf, nil
 		}
 	}
-	return nil, errors.New("block not found")
+	return nil, ErrBlockNotFound
 }
 
 func (bm *BufferManager) FlushAll(txnum int) {
@@ -68,7 +73,7 @@ func (bm *BufferManager) FlushAll(txnum int) {
 }
 
 // Pin 指定したblockをbufferに読み込む
-func (bm *BufferManager) Pin(block *Block) (*Buffer, error) {
+func (bm *BufferManager) Pin(block *disk.Block) (*Buffer, error) {
 	// check if the block is already in the buffer pool
 	for _, bp := range bm.pool {
 		if bp.block != nil && bp.block.Equals(block) {
@@ -114,17 +119,17 @@ func (bm *BufferManager) Unpin(buf *Buffer) {
 }
 
 type Buffer struct {
-	Contents *Page
-	fm       *FileManager
-	lm       *LogManager
-	block    *Block
+	Contents *disk.Page
+	fm       *disk.FileManager
+	lm       *log.LogManager
+	block    *disk.Block
 	pincnt   int
 	txnum    int
 	lsn      int
 }
 
-func NewBuffer(fm *FileManager, lm *LogManager) *Buffer {
-	c := NewPage(int(fm.Blocksize))
+func NewBuffer(fm *disk.FileManager, lm *log.LogManager) *Buffer {
+	c := disk.NewPage(int(fm.Blocksize))
 	return &Buffer{
 		fm:       fm,
 		lm:       lm,
@@ -135,7 +140,7 @@ func NewBuffer(fm *FileManager, lm *LogManager) *Buffer {
 	}
 }
 
-func (b *Buffer) Block() *Block {
+func (b *Buffer) Block() *disk.Block {
 	return b.block
 }
 

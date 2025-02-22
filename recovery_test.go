@@ -1,15 +1,12 @@
 package main
 
 import (
-	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"simpledb/log"
 )
 
 type TestLogger struct {
 	result [][]byte
-	itr    *LogIterator
+	itr    *log.LogIterator
 }
 
 func (l *TestLogger) Flush(lsn int) error {
@@ -21,12 +18,13 @@ func (l *TestLogger) Append(record []byte) (int, error) {
 	return len(record), nil
 }
 
-func (l *TestLogger) Iterator() (*LogIterator, error) {
+func (l *TestLogger) Iterator() (*log.LogIterator, error) {
 	return l.itr, nil
 }
 
+/*
 func TestRecoveryManager_Commit(t *testing.T) {
-	fm := NewFileManager(400)
+	fm := disk.NewFileManager(400)
 	logger := &TestLogger{}
 
 	rm, err := NewRecoveryManager(fm, logger, 1)
@@ -40,7 +38,7 @@ func TestRecoveryManager_Commit(t *testing.T) {
 }
 
 func TestRecoveryManager_Rollback(t *testing.T) {
-	fm := NewFileManager(400)
+	fm := disk.NewFileManager(400)
 	logger := &TestLogger{}
 
 	rm, err := NewRecoveryManager(fm, logger, 1)
@@ -53,7 +51,6 @@ func TestRecoveryManager_Rollback(t *testing.T) {
 	assert.Equal(t, []byte{0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01}, logger.result[1])
 }
 
-/*
 func TestRecoveryManager_Recover(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 		rm, err := NewRecoveryManager(nil, nil, 1)

@@ -2,20 +2,22 @@ package main
 
 import (
 	"encoding/binary"
+	"simpledb/disk"
+	simpledblog "simpledb/log"
 	"simpledb/log/record"
 )
 
 type RecoveryManager struct {
-	fm   *FileManager
-	lm   Logger
+	fm   *disk.FileManager
+	lm   simpledblog.Logger
 	txid int
 }
 
-func NewRecoveryManager(fm *FileManager, lm Logger, txid int) (*RecoveryManager, error) {
+func NewRecoveryManager(fm *disk.FileManager, lm simpledblog.Logger, txid int) (*RecoveryManager, error) {
 	// start record
 	// <START, txid>
 
-	p := NewPage(8)
+	p := disk.NewPage(8)
 	err := p.SetInt32(0, record.Instruction_START)
 	if err != nil {
 		return nil, err
@@ -26,7 +28,7 @@ func NewRecoveryManager(fm *FileManager, lm Logger, txid int) (*RecoveryManager,
 		return nil, err
 	}
 
-	_, err = lm.Append(p.buf)
+	_, err = lm.Append(p.Buf())
 	return &RecoveryManager{
 		fm:   fm,
 		lm:   lm,
@@ -38,7 +40,7 @@ func (rm *RecoveryManager) Start() {}
 
 func (rm *RecoveryManager) Commit() error {
 	// <COMMIT, txid>
-	p := NewPage(8)
+	p := disk.NewPage(8)
 	err := p.SetInt32(0, record.Instruction_COMMIT)
 	if err != nil {
 		return err
@@ -49,13 +51,13 @@ func (rm *RecoveryManager) Commit() error {
 		return err
 	}
 
-	_, err = rm.lm.Append(p.buf)
+	_, err = rm.lm.Append(p.Buf())
 	return err
 }
 
 func (rm *RecoveryManager) Rollback() error {
 	// <ROLLBACK, txid>
-	p := NewPage(8)
+	p := disk.NewPage(8)
 	err := p.SetInt32(0, record.Instruction_ROLLBACK)
 	if err != nil {
 		return err
@@ -66,7 +68,7 @@ func (rm *RecoveryManager) Rollback() error {
 		return err
 	}
 
-	_, err = rm.lm.Append(p.buf)
+	_, err = rm.lm.Append(p.Buf())
 	return err
 }
 
@@ -100,7 +102,6 @@ func (rm *RecoveryManager) Recover() error {
 		case record.Instruction_SETSTRING:
 			rec := record.SetStringRecord{}
 			rec.Read(data)
-
 		}
 	}
 
@@ -108,7 +109,7 @@ func (rm *RecoveryManager) Recover() error {
 	return nil
 }
 
-func (rm *RecoveryManager) SetInt32(block *Block, offset int, oldv, newv int32) (int, error) {
+func (rm *RecoveryManager) SetInt32(block *disk.Block, offset int, oldv, newv int32) (int, error) {
 	// <SETINT32, txid, filename, blknum, offset, oldvalue, newvalue>
 
 	return 0, nil

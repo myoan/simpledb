@@ -1,4 +1,4 @@
-package main
+package disk
 
 import (
 	"testing"
@@ -55,7 +55,7 @@ func TestGetInt32(t *testing.T) {
 			got, err := p.GetInt32(tt.offset)
 			assert.Equal(t, tt.expectErr, err)
 			assert.Equal(t, tt.want, got)
-			assert.Equal(t, tt.cursor, p.cursor)
+			// assert.Equal(t, tt.cursor, p.cursor)
 		})
 	}
 }
@@ -68,10 +68,10 @@ func TestGetInt32_continuous(t *testing.T) {
 	}
 	p := &Page{buf: pagedata}
 
-	for i := 1; i < 4; i++ {
-		got, err := p.GetInt32(0)
+	for i := 0; i < 3; i++ {
+		got, err := p.GetInt32(i * 4)
 		assert.NoError(t, err)
-		assert.Equal(t, int32(i), got)
+		assert.Equal(t, int32(i+1), got)
 	}
 }
 func TestSetInt32(t *testing.T) {
@@ -137,7 +137,6 @@ func TestSetInt32(t *testing.T) {
 			err := p.SetInt32(tt.offset, tt.value)
 			assert.Equal(t, tt.expectErr, err)
 			assert.Equal(t, tt.want, p.buf)
-			assert.Equal(t, tt.cursor, p.cursor)
 		})
 	}
 }
@@ -145,10 +144,9 @@ func TestSetInt32(t *testing.T) {
 func TestSetInt32_continuous(t *testing.T) {
 	p := NewPage(16)
 
-	for i := 1; i < 5; i++ {
-		err := p.SetInt32(0, int32(i))
+	for i := 0; i < 4; i++ {
+		err := p.SetInt32(i*4, int32(i+1))
 		assert.NoError(t, err)
-		assert.Equal(t, i*4, p.cursor)
 	}
 	assert.Equal(t, []byte{
 		0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02,
@@ -289,10 +287,9 @@ func TestSetBytes(t *testing.T) {
 func TestSetBytes_continuous(t *testing.T) {
 	p := NewPage(16)
 
-	for i := 1; i < 3; i++ {
-		err := p.SetBytes(0, []byte("hoge"))
+	for i := 0; i < 2; i++ {
+		err := p.SetBytes(i*8, []byte("hoge"))
 		assert.NoError(t, err)
-		assert.Equal(t, i*8, p.cursor)
 	}
 	assert.Equal(t, []byte{
 		0x00, 0x00, 0x00, 0x04, 0x68, 0x6f, 0x67, 0x65,
