@@ -7,7 +7,7 @@ import (
 
 type SimpleDB struct {
 	BufferManager *BufferManager
-	fm            *disk.FileManager
+	fm            disk.FileManager
 	lm            *log.LogManager
 }
 

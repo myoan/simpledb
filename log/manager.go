@@ -1,6 +1,7 @@
 package log
 
 import (
+	"errors"
 	"simpledb/disk"
 	"simpledb/log/record"
 )
@@ -21,7 +22,7 @@ type Logger interface {
 }
 
 type LogManager struct {
-	fileMng    *disk.FileManager
+	fileMng    disk.FileManager
 	fileName   string
 	page       *disk.Page
 	currentBlk *disk.Block
@@ -29,7 +30,7 @@ type LogManager struct {
 	savedLSN   int
 }
 
-func NewLogManager(fm *disk.FileManager, filename string) (*LogManager, error) {
+func NewLogManager(fm disk.FileManager, filename string) (*LogManager, error) {
 	loglen, err := fm.Length(filename)
 	if err != nil {
 		return nil, err
@@ -38,7 +39,7 @@ func NewLogManager(fm *disk.FileManager, filename string) (*LogManager, error) {
 	lm := &LogManager{
 		fileMng:  fm,
 		fileName: filename,
-		page:     disk.NewPage(fm.Blocksize),
+		page:     disk.NewPage(fm.Blocksize()),
 	}
 
 	var currentblk *disk.Block
@@ -61,7 +62,7 @@ func (lm *LogManager) appendNewBlock() (*disk.Block, error) {
 		return nil, err
 	}
 
-	err = lm.page.SetInt32(0, int32(lm.fileMng.Blocksize))
+	err = lm.page.SetInt32(0, int32(lm.fileMng.Blocksize()))
 	if err != nil {
 		return nil, err
 	}
@@ -75,11 +76,49 @@ func (lm *LogManager) appendNewBlock() (*disk.Block, error) {
 }
 
 func (lm *LogManager) Flush(lsn int) error {
-	return lm.fileMng.Write(lm.currentBlk, lm.page)
+	err := lm.fileMng.Write(lm.currentBlk, lm.page)
+	if err != nil {
+		return err
+	}
+	if lsn > lm.CurrentLSN {
+		lm.savedLSN = lm.CurrentLSN
+	} else {
+		lm.savedLSN = lsn
+	}
+	return nil
 }
 
+// Append appends a log record to the end of the log file
 func (lm *LogManager) Append(record []byte) (int, error) {
-	err := lm.page.SetBytes(0, record)
+	var boundary int32
+	var index int
+	var err error
+	boundary, err = lm.page.GetInt32(0)
+	if err != nil {
+		return 0, err
+	}
+	index = int(boundary) - len(record) - 4
+	if index == 0 {
+		// TODO: blocksizeとrecordのサイズが同じ場合の処理
+		return 0, errors.New("blocksize and record size are same")
+	} else if index < 0 {
+		err = lm.Flush(lm.CurrentLSN)
+		if err != nil {
+			return 0, err
+		}
+		lm.appendNewBlock()
+		err = lm.page.SetInt32(0, int32(lm.fileMng.Blocksize()))
+		if err != nil {
+			return 0, err
+		}
+		boundary = int32(lm.fileMng.Blocksize())
+		index = int(boundary) - len(record) - 4
+	}
+	err = lm.page.SetBytes(index, record)
+	if err != nil {
+		return 0, err
+	}
+	err = lm.page.SetInt32(0, int32(index))
 	if err != nil {
 		return 0, err
 	}
@@ -228,15 +267,15 @@ func (lm *LogManager) SetString(txid int, block *disk.Block, offset int, old, ne
 }
 
 type LogIterator struct {
-	fileMng    *disk.FileManager
+	fileMng    disk.FileManager
 	block      *disk.Block
 	page       *disk.Page
 	currentPos int
 	boundary   int
 }
 
-func NewLogIterator(fm *disk.FileManager, block *disk.Block) (*LogIterator, error) {
-	page := disk.NewPage(fm.Blocksize)
+func NewLogIterator(fm disk.FileManager, block *disk.Block) (*LogIterator, error) {
+	page := disk.NewPage(fm.Blocksize())
 	fm.Read(block, page)
 	b, err := page.GetInt32(0)
 	if err != nil {
@@ -253,12 +292,12 @@ func NewLogIterator(fm *disk.FileManager, block *disk.Block) (*LogIterator, erro
 }
 
 func (i *LogIterator) HasNext() bool {
-	return i.currentPos < i.fileMng.Blocksize || i.block.Num > 0
+	return i.currentPos < i.fileMng.Blocksize() || i.block.Num > 0
 }
 
 // Next returns the next log record order by last to first
 func (i *LogIterator) Next() ([]byte, error) {
-	if i.currentPos >= i.fileMng.Blocksize {
+	if i.currentPos >= i.fileMng.Blocksize() {
 		// iterates order from the last block to the first block
 		nextblock := disk.NewBlock(i.block.Filename, i.block.Num-1)
 		i.fileMng.Read(nextblock, i.page)

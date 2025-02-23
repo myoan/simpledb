@@ -8,12 +8,12 @@ import (
 )
 
 type RecoveryManager struct {
-	fm   *disk.FileManager
+	fm   disk.FileManager
 	lm   simpledblog.Logger
 	txid int
 }
 
-func NewRecoveryManager(fm *disk.FileManager, lm simpledblog.Logger, txid int) (*RecoveryManager, error) {
+func NewRecoveryManager(fm disk.FileManager, lm simpledblog.Logger, txid int) (*RecoveryManager, error) {
 	// start record
 	// <START, txid>
 

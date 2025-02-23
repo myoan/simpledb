@@ -20,7 +20,7 @@ type BufferManager struct {
 	Available int
 	pool      []*Buffer
 	final     int
-	fm        *disk.FileManager
+	fm        disk.FileManager
 	lm        *log.LogManager
 	count     int
 }
@@ -33,7 +33,7 @@ func WithFinalizeTime(ms int) BufferManagerOptions {
 	}
 }
 
-func NewBufferManager(fm *disk.FileManager, lm *log.LogManager, bufCnt int, opts ...BufferManagerOptions) *BufferManager {
+func NewBufferManager(fm disk.FileManager, lm *log.LogManager, bufCnt int, opts ...BufferManagerOptions) *BufferManager {
 	pool := make([]*Buffer, bufCnt)
 	for i := 0; i < bufCnt; i++ {
 		pool[i] = NewBuffer(fm, lm)
@@ -120,7 +120,7 @@ func (bm *BufferManager) Unpin(buf *Buffer) {
 
 type Buffer struct {
 	Contents *disk.Page
-	fm       *disk.FileManager
+	fm       disk.FileManager
 	lm       *log.LogManager
 	block    *disk.Block
 	pincnt   int
@@ -128,8 +128,8 @@ type Buffer struct {
 	lsn      int
 }
 
-func NewBuffer(fm *disk.FileManager, lm *log.LogManager) *Buffer {
-	c := disk.NewPage(int(fm.Blocksize))
+func NewBuffer(fm disk.FileManager, lm *log.LogManager) *Buffer {
+	c := disk.NewPage(int(fm.Blocksize()))
 	return &Buffer{
 		fm:       fm,
 		lm:       lm,

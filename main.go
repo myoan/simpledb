@@ -19,7 +19,7 @@ func main() {
 
 	mng := disk.NewFileManager(blksize)
 	block := disk.NewBlock("test", 0)
-	page := disk.NewPage(mng.Blocksize)
+	page := disk.NewPage(mng.Blocksize())
 	page.SetString(0, "Hello, World!")
 	data, err := page.GetString(0)
 	if err != nil {
