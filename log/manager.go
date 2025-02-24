@@ -6,15 +6,6 @@ import (
 	"simpledb/log/record"
 )
 
-/*
-type LogManager interface {
-	Append(record []byte) (int, error)
-	Flush(lsn int) error
-	HasNext() bool
-	Next() []byte
-}
-*/
-
 type Logger interface {
 	Flush(lsn int) error
 	Append(record []byte) (int, error)
