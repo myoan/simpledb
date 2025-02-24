@@ -12,6 +12,15 @@ type Logger interface {
 	Iterator() (*LogIterator, error)
 }
 
+type TxLogger interface {
+	Iterator() (*LogIterator, error)
+	Start(txid int) error
+	Commit(txid int) error
+	Rollback(txid int) error
+	SetInt32(txid int, block *disk.Block, offset int, old, new int32) (int, error)
+	SetString(txid int, block *disk.Block, offset int, old, new string) (int, error)
+}
+
 type LogManager struct {
 	fileMng    disk.FileManager
 	fileName   string

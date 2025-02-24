@@ -2,6 +2,7 @@ package record
 
 import (
 	"encoding/binary"
+	"simpledb/disk"
 )
 
 const (
@@ -59,12 +60,39 @@ func (r *NQCheckPointRecord) Read(data []byte) {
 	r.TxIDs = txids
 }
 
+type SetInt32Record struct {
+	TxID     int
+	Filename string
+	BlkNum   int
+	Offset   int
+	OldValue int32
+	NewValue int32
+}
+
+func (r *SetInt32Record) Read(data []byte) {
+	r.TxID = int(binary.BigEndian.Uint32(data[4:8]))
+	filelen := binary.BigEndian.Uint32(data[8:12])
+	r.Filename = string(data[12 : 12+filelen])
+	r.BlkNum = int(binary.BigEndian.Uint32(data[12+filelen : 16+filelen]))
+	r.Offset = int(binary.BigEndian.Uint32(data[16+filelen : 20+filelen]))
+	r.OldValue = int32(binary.BigEndian.Uint32(data[20+filelen : 24+filelen]))
+	r.NewValue = int32(binary.BigEndian.Uint32(data[24+filelen : 28+filelen]))
+}
+
+func (r *SetInt32Record) Block() *disk.Block {
+	return &disk.Block{
+		Filename: r.Filename,
+		Num:      r.BlkNum,
+	}
+}
+
 type SetStringRecord struct {
 	TxID     int
 	Filename string
 	BlkNum   int
 	Offset   int
-	Value    string
+	OldValue string
+	NewValue string
 }
 
 func (r *SetStringRecord) Read(data []byte) {
@@ -73,10 +101,15 @@ func (r *SetStringRecord) Read(data []byte) {
 	r.Filename = string(data[12 : 12+filelen])
 	r.BlkNum = int(binary.BigEndian.Uint32(data[12+filelen : 16+filelen]))
 	r.Offset = int(binary.BigEndian.Uint32(data[16+filelen : 20+filelen]))
-	valuelen := binary.BigEndian.Uint32(data[20+filelen : 24+filelen])
-	r.Value = string(data[24+filelen : 24+filelen+valuelen])
+	ovaluelen := binary.BigEndian.Uint32(data[20+filelen : 24+filelen])
+	r.OldValue = string(data[24+filelen : 24+filelen+ovaluelen])
+	nvaluelen := binary.BigEndian.Uint32(data[24+filelen+ovaluelen : 28+filelen+ovaluelen])
+	r.NewValue = string(data[28+filelen+ovaluelen : 24+filelen+ovaluelen+nvaluelen])
 }
 
-func (r *SetStringRecord) Undo() error {
-	return nil
+func (r *SetStringRecord) Block() *disk.Block {
+	return &disk.Block{
+		Filename: r.Filename,
+		Num:      r.BlkNum,
+	}
 }

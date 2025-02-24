@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/binary"
 	"errors"
 	"simpledb/disk"
 	"simpledb/log"
+	logrecord "simpledb/log/record"
 	"sync"
 )
 
@@ -65,19 +67,19 @@ func (cm *ConcurrencyManager) Release() {
 
 type Transaction struct {
 	id     int
-	lm     *log.LogManager
+	lm     log.TxLogger
 	bm     *BufferManager
 	cm     *ConcurrencyManager
-	locked map[*disk.Block]struct{}
+	locked map[disk.Block]struct{}
 }
 
-func NewTransaction(id int, lm *log.LogManager, cm *ConcurrencyManager, bm *BufferManager) *Transaction {
+func NewTransaction(id int, lm log.TxLogger, cm *ConcurrencyManager, bm *BufferManager) *Transaction {
 	return &Transaction{
 		id:     id,
 		lm:     lm,
 		cm:     cm,
 		bm:     bm,
-		locked: make(map[*disk.Block]struct{}),
+		locked: make(map[disk.Block]struct{}),
 	}
 }
 
@@ -91,7 +93,7 @@ func (tx *Transaction) Commit() error {
 		return err
 	}
 	for block := range tx.locked {
-		tx.cm.Unlock(block)
+		tx.cm.Unlock(&block)
 	}
 	return nil
 }
@@ -102,10 +104,57 @@ func (tx *Transaction) Rollback() error {
 		return err
 	}
 
-	// TODO: undo changes
+	itr, err := tx.lm.Iterator()
+	if err != nil {
+		return err
+	}
+
+	for itr.HasNext() {
+		data, err := itr.Next()
+		if err != nil {
+			return err
+		}
+		inst := binary.BigEndian.Uint32(data[:4])
+		switch inst {
+		case logrecord.Instruction_CHECKPOINT:
+			break
+		case logrecord.Instruction_SETINT32:
+			record := &logrecord.SetInt32Record{}
+			record.Read(data)
+
+			if record.TxID != tx.id {
+				continue
+			}
+
+			buf, err := tx.bm.GetBuf(record.Block())
+			if err != nil {
+				return err
+			}
+			err = buf.Contents.SetInt32(record.Offset, record.OldValue)
+			if err != nil {
+				return err
+			}
+		case logrecord.Instruction_SETSTRING:
+			record := &logrecord.SetStringRecord{}
+			record.Read(data)
+
+			if record.TxID != tx.id {
+				continue
+			}
+
+			buf, err := tx.bm.GetBuf(record.Block())
+			if err != nil {
+				return err
+			}
+			err = buf.Contents.SetString(record.Offset, record.OldValue)
+			if err != nil {
+				return err
+			}
+		}
+	}
 
 	for block := range tx.locked {
-		tx.cm.Unlock(block)
+		tx.cm.Unlock(&block)
 	}
 	return nil
 }
@@ -114,7 +163,7 @@ func (tx *Transaction) GetInt32(block *disk.Block, offset int) (int32, error) {
 	tx.cm.SLock(block)
 	defer func() {
 		tx.cm.Unlock(block)
-		delete(tx.locked, block)
+		delete(tx.locked, *block)
 	}()
 
 	buf, err := tx.bm.GetBuf(block)
@@ -129,7 +178,7 @@ func (tx *Transaction) GetString(block *disk.Block, offset int) (string, error) 
 	tx.cm.SLock(block)
 	defer func() {
 		tx.cm.Unlock(block)
-		delete(tx.locked, block)
+		delete(tx.locked, *block)
 	}()
 
 	buf, err := tx.bm.GetBuf(block)
@@ -141,12 +190,8 @@ func (tx *Transaction) GetString(block *disk.Block, offset int) (string, error) 
 
 func (tx *Transaction) SetInt32(block *disk.Block, offset int, n int32) error {
 	tx.cm.XLock(block)
-	defer func() {
-		tx.cm.Unlock(block)
-		delete(tx.locked, block)
-	}()
 
-	tx.locked[block] = struct{}{}
+	tx.locked[*block] = struct{}{}
 	buf, err := tx.bm.GetBuf(block)
 	if err != nil {
 		if errors.Is(err, ErrBlockNotFound) {
@@ -178,12 +223,8 @@ func (tx *Transaction) SetInt32(block *disk.Block, offset int, n int32) error {
 
 func (tx *Transaction) SetString(block *disk.Block, offset int, v string) error {
 	tx.cm.XLock(block)
-	defer func() {
-		tx.cm.Unlock(block)
-		delete(tx.locked, block)
-	}()
 
-	tx.locked[block] = struct{}{}
+	tx.locked[*block] = struct{}{}
 	buf, err := tx.bm.GetBuf(block)
 	if err != nil {
 		if errors.Is(err, ErrBlockNotFound) {
