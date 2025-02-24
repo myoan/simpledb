@@ -28,7 +28,7 @@ func NewRecoveryManager(fm disk.FileManager, lm simpledblog.Logger, txid int) (*
 		return nil, err
 	}
 
-	_, err = lm.Append(p.Buf())
+	_, err = lm.Append(p.Buf)
 	return &RecoveryManager{
 		fm:   fm,
 		lm:   lm,
@@ -51,7 +51,7 @@ func (rm *RecoveryManager) Commit() error {
 		return err
 	}
 
-	_, err = rm.lm.Append(p.Buf())
+	_, err = rm.lm.Append(p.Buf)
 	return err
 }
 
@@ -68,7 +68,7 @@ func (rm *RecoveryManager) Rollback() error {
 		return err
 	}
 
-	_, err = rm.lm.Append(p.Buf())
+	_, err = rm.lm.Append(p.Buf)
 	return err
 }
 

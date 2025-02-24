@@ -144,7 +144,7 @@ func (lm *LogManager) Start(txid int) error {
 		return err
 	}
 
-	_, err = lm.Append(p.Buf())
+	_, err = lm.Append(p.Buf)
 	return nil
 }
 
@@ -160,7 +160,7 @@ func (lm *LogManager) Commit(txid int) error {
 		return err
 	}
 
-	_, err = lm.Append(p.Buf())
+	_, err = lm.Append(p.Buf)
 	return nil
 }
 
@@ -176,7 +176,7 @@ func (lm *LogManager) Rollback(txid int) error {
 		return err
 	}
 
-	_, err = lm.Append(p.Buf())
+	_, err = lm.Append(p.Buf)
 	return nil
 }
 
@@ -219,7 +219,7 @@ func (lm *LogManager) SetInt32(txid int, block *disk.Block, offset int, old, new
 	if err != nil {
 		return 0, err
 	}
-	_, err = lm.Append(p.Buf())
+	_, err = lm.Append(p.Buf)
 	return size, err
 }
 
@@ -262,7 +262,7 @@ func (lm *LogManager) SetString(txid int, block *disk.Block, offset int, old, ne
 	if err != nil {
 		return 0, err
 	}
-	_, err = lm.Append(p.Buf())
+	_, err = lm.Append(p.Buf)
 	return size, err
 }
 
@@ -271,7 +271,6 @@ type LogIterator struct {
 	block      *disk.Block
 	page       *disk.Page
 	currentPos int
-	boundary   int
 }
 
 func NewLogIterator(fm disk.FileManager, block *disk.Block) (*LogIterator, error) {
@@ -286,8 +285,7 @@ func NewLogIterator(fm disk.FileManager, block *disk.Block) (*LogIterator, error
 		fileMng:    fm,
 		block:      block,
 		page:       page,
-		currentPos: 4,
-		boundary:   int(b),
+		currentPos: int(b),
 	}, nil
 }
 
@@ -307,13 +305,14 @@ func (i *LogIterator) Next() ([]byte, error) {
 		}
 
 		i.currentPos = int(b)
+		i.block = nextblock
 	}
 
-	result, err := i.page.GetBytes(0)
+	result, err := i.page.GetBytes(i.currentPos)
 	if err != nil {
 		return []byte{}, err
 	}
 
-	i.currentPos += len(result)
+	i.currentPos += len(result) + 4
 	return result, nil
 }

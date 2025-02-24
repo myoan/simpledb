@@ -51,7 +51,7 @@ func TestGetInt32(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := &Page{buf: tt.pageData}
+			p := &Page{Buf: tt.pageData}
 			got, err := p.GetInt32(tt.offset)
 			assert.Equal(t, tt.expectErr, err)
 			assert.Equal(t, tt.want, got)
@@ -66,7 +66,7 @@ func TestGetInt32_continuous(t *testing.T) {
 		0x00, 0x00, 0x00, 0x02,
 		0x00, 0x00, 0x00, 0x03,
 	}
-	p := &Page{buf: pagedata}
+	p := &Page{Buf: pagedata}
 
 	for i := 0; i < 3; i++ {
 		got, err := p.GetInt32(i * 4)
@@ -136,7 +136,7 @@ func TestSetInt32(t *testing.T) {
 			p := NewPage(tt.pagesize)
 			err := p.SetInt32(tt.offset, tt.value)
 			assert.Equal(t, tt.expectErr, err)
-			assert.Equal(t, tt.want, p.buf)
+			assert.Equal(t, tt.want, p.Buf)
 		})
 	}
 }
@@ -151,7 +151,7 @@ func TestSetInt32_continuous(t *testing.T) {
 	assert.Equal(t, []byte{
 		0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02,
 		0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x04,
-	}, p.buf)
+	}, p.Buf)
 }
 
 func TestGetBytes(t *testing.T) {
@@ -218,7 +218,7 @@ func TestGetBytes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := &Page{buf: tt.pageData}
+			p := &Page{Buf: tt.pageData}
 			got, err := p.GetBytes(tt.offset)
 			assert.Equal(t, tt.expectErr, err)
 			assert.Equal(t, tt.want, got)
@@ -279,7 +279,7 @@ func TestSetBytes(t *testing.T) {
 			p := NewPage(tt.pagesize)
 			err := p.SetBytes(tt.offset, tt.input)
 			assert.Equal(t, tt.expectErr, err)
-			assert.Equal(t, tt.want, p.buf)
+			assert.Equal(t, tt.want, p.Buf)
 		})
 	}
 }
@@ -294,5 +294,5 @@ func TestSetBytes_continuous(t *testing.T) {
 	assert.Equal(t, []byte{
 		0x00, 0x00, 0x00, 0x04, 0x68, 0x6f, 0x67, 0x65,
 		0x00, 0x00, 0x00, 0x04, 0x68, 0x6f, 0x67, 0x65,
-	}, p.buf)
+	}, p.Buf)
 }

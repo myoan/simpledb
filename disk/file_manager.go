@@ -32,7 +32,7 @@ func (fm *fileManager) Read(block *Block, page *Page) error {
 	}
 	defer f.Close()
 
-	_, err = f.ReadAt(page.buf, int64(block.Num)*int64(fm.blocksize))
+	_, err = f.ReadAt(page.Buf, int64(block.Num)*int64(fm.blocksize))
 	return err
 }
 
@@ -44,7 +44,7 @@ func (fm *fileManager) Write(block *Block, page *Page) error {
 	}
 	defer f.Close()
 
-	_, err = f.WriteAt(page.buf, int64(block.Num)*int64(fm.blocksize))
+	_, err = f.WriteAt(page.Buf, int64(block.Num)*int64(fm.blocksize))
 	return err
 }
 
@@ -90,7 +90,7 @@ func (fm *fileManager) Dump(block *Block) error {
 	defer f.Close()
 
 	buf := make([]byte, fm.blocksize)
-	_, err = f.ReadAt(buf, int64(block.Num)*int64(fm.blocksize))
+	_, err = f.ReadAt(buf, int64(block.Num)*int64(fm.Blocksize()))
 	if err != nil {
 		return err
 	}
