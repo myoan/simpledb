@@ -10,8 +10,8 @@ import (
 type LockState int
 
 const (
-	LockState_S LockState = iota
-	LockState_X
+	LockState_SHARED LockState = iota
+	LockState_EXCLUSIVE
 )
 
 var (
@@ -19,7 +19,7 @@ var (
 )
 
 type ConcurrencyManager struct {
-	lockTable map[*disk.Block]LockState
+	lockTable map[disk.Block]LockState
 	mu        sync.Mutex
 }
 
@@ -27,15 +27,15 @@ func (cm *ConcurrencyManager) SLock(block *disk.Block) error {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
-	state, found := cm.lockTable[block]
+	state, found := cm.lockTable[*block]
 	if found {
-		if state == LockState_X {
+		if state == LockState_EXCLUSIVE {
 			return ErrAlreadyLocked
 		} else {
 			return nil
 		}
 	}
-	cm.lockTable[block] = LockState_S
+	cm.lockTable[*block] = LockState_SHARED
 	return nil
 }
 
@@ -43,10 +43,10 @@ func (cm *ConcurrencyManager) XLock(block *disk.Block) error {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
-	if _, found := cm.lockTable[block]; found {
+	if _, found := cm.lockTable[*block]; found {
 		return ErrAlreadyLocked
 	}
-	cm.lockTable[block] = LockState_X
+	cm.lockTable[*block] = LockState_EXCLUSIVE
 	return nil
 }
 
@@ -54,12 +54,12 @@ func (cm *ConcurrencyManager) Unlock(block *disk.Block) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
-	delete(cm.lockTable, block)
+	delete(cm.lockTable, *block)
 }
 
 func (cm *ConcurrencyManager) Release() {
 	for block := range cm.lockTable {
-		cm.Unlock(block)
+		cm.Unlock(&block)
 	}
 }
 
@@ -81,8 +81,8 @@ func NewTransaction(id int, lm *log.LogManager, cm *ConcurrencyManager, bm *Buff
 	}
 }
 
-func (tx *Transaction) start() {
-	tx.lm.Start(tx.id)
+func (tx *Transaction) Start() error {
+	return tx.lm.Start(tx.id)
 }
 
 func (tx *Transaction) Commit() error {
