@@ -102,3 +102,40 @@ func (fm *fileManager) Dump(block *Block) error {
 func (fm *fileManager) Blocksize() int {
 	return fm.blocksize
 }
+
+type NopFileManager struct {
+	data  []byte
+	bsize int
+}
+
+func NewNopFileManager(bsize int, data []byte) *NopFileManager {
+	return &NopFileManager{
+		bsize: bsize,
+		data:  data,
+	}
+}
+
+func (d *NopFileManager) Read(blk *Block, page *Page) error {
+	page.Buf = d.data
+	return nil
+}
+
+func (d *NopFileManager) Write(blk *Block, page *Page) error {
+	return nil
+}
+
+func (d *NopFileManager) Append(filename string) (*Block, error) {
+	return nil, nil
+}
+
+func (d *NopFileManager) Length(filename string) (int, error) {
+	return 0, nil
+}
+
+func (d *NopFileManager) Dump(blk *Block) error {
+	return nil
+}
+
+func (d *NopFileManager) Blocksize() int {
+	return d.bsize
+}

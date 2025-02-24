@@ -7,36 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type nopFileManager struct {
-	data  []byte
-	bsize int
-}
-
-func (d *nopFileManager) Read(blk *disk.Block, page *disk.Page) error {
-	page.Buf = d.data
-	return nil
-}
-
-func (d *nopFileManager) Write(blk *disk.Block, page *disk.Page) error {
-	return nil
-}
-
-func (d *nopFileManager) Append(filename string) (*disk.Block, error) {
-	return nil, nil
-}
-
-func (d *nopFileManager) Length(filename string) (int, error) {
-	return 0, nil
-}
-
-func (d *nopFileManager) Dump(blk *disk.Block) error {
-	return nil
-}
-
-func (d *nopFileManager) Blocksize() int {
-	return d.bsize
-}
-
 func requireLogRecord(t *testing.T, want []byte, p *disk.Page) {
 	ideal := make([]byte, len(want)+4)
 	ideal[0] = 0x00
@@ -48,7 +18,7 @@ func requireLogRecord(t *testing.T, want []byte, p *disk.Page) {
 }
 
 func TestLogManger_Append(t *testing.T) {
-	mng, err := NewLogManager(&nopFileManager{bsize: 30}, "test.db")
+	mng, err := NewLogManager(disk.NewNopFileManager(30, []byte{}), "test.db")
 	require.NoError(t, err)
 
 	lsn, err := mng.Append([]byte("Hello"))
@@ -81,7 +51,7 @@ func TestLogManger_Append(t *testing.T) {
 }
 
 func TestLogManager_Start(t *testing.T) {
-	mng, err := NewLogManager(&nopFileManager{bsize: 20}, "test.db")
+	mng, err := NewLogManager(disk.NewNopFileManager(20, []byte{}), "test.db")
 	require.NoError(t, err)
 
 	err = mng.Start(1)
@@ -93,7 +63,7 @@ func TestLogManager_Start(t *testing.T) {
 }
 
 func TestLogManager_Commit(t *testing.T) {
-	mng, err := NewLogManager(&nopFileManager{bsize: 20}, "test.db")
+	mng, err := NewLogManager(disk.NewNopFileManager(20, []byte{}), "test.db")
 	require.NoError(t, err)
 
 	err = mng.Commit(1)
@@ -105,7 +75,7 @@ func TestLogManager_Commit(t *testing.T) {
 }
 
 func TestLogManager_Rollback(t *testing.T) {
-	mng, err := NewLogManager(&nopFileManager{bsize: 20}, "test.db")
+	mng, err := NewLogManager(disk.NewNopFileManager(20, []byte{}), "test.db")
 	require.NoError(t, err)
 
 	err = mng.Rollback(1)
@@ -117,7 +87,7 @@ func TestLogManager_Rollback(t *testing.T) {
 }
 
 func TestLogManager_SetInt32(t *testing.T) {
-	mng, err := NewLogManager(&nopFileManager{bsize: 36}, "test.db")
+	mng, err := NewLogManager(disk.NewNopFileManager(36, []byte{}), "test.db")
 	require.NoError(t, err)
 
 	block := disk.NewBlock("test", 0)
@@ -139,7 +109,7 @@ func TestLogManager_SetInt32(t *testing.T) {
 }
 
 func TestLogManager_SetString(t *testing.T) {
-	mng, err := NewLogManager(&nopFileManager{bsize: 44}, "test.db")
+	mng, err := NewLogManager(disk.NewNopFileManager(44, []byte{}), "test.db")
 	require.NoError(t, err)
 
 	block := disk.NewBlock("test", 0)
@@ -218,7 +188,7 @@ func TestLogIterator_Next(t *testing.T) {
 
 	for _, tt := range testcases {
 		t.Run(tt.name, func(t *testing.T) {
-			itr, err := NewLogIterator(&nopFileManager{data: tt.data, bsize: tt.bsize}, tt.block)
+			itr, err := NewLogIterator(disk.NewNopFileManager(tt.bsize, tt.data), tt.block)
 			require.NoError(t, err)
 
 			for _, expect := range tt.want {
