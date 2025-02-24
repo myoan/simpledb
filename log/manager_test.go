@@ -1,13 +1,13 @@
 package log
 
 import (
-	"simpledb/disk"
+	"simpledb/storage"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
-func requireLogRecord(t *testing.T, want []byte, p *disk.Page) {
+func requireLogRecord(t *testing.T, want []byte, p *storage.Page) {
 	ideal := make([]byte, len(want)+4)
 	ideal[0] = 0x00
 	ideal[1] = 0x00
@@ -18,7 +18,7 @@ func requireLogRecord(t *testing.T, want []byte, p *disk.Page) {
 }
 
 func TestLogManger_Append(t *testing.T) {
-	mng, err := NewLogManager(disk.NewNopFileManager(30, []byte{}), "test.db")
+	mng, err := NewLogManager(storage.NewNopFileManager(30, []byte{}), "test.db")
 	require.NoError(t, err)
 
 	lsn, err := mng.Append([]byte("Hello"))
@@ -51,7 +51,7 @@ func TestLogManger_Append(t *testing.T) {
 }
 
 func TestLogManager_Start(t *testing.T) {
-	mng, err := NewLogManager(disk.NewNopFileManager(20, []byte{}), "test.db")
+	mng, err := NewLogManager(storage.NewNopFileManager(20, []byte{}), "test.db")
 	require.NoError(t, err)
 
 	err = mng.Start(1)
@@ -63,7 +63,7 @@ func TestLogManager_Start(t *testing.T) {
 }
 
 func TestLogManager_Commit(t *testing.T) {
-	mng, err := NewLogManager(disk.NewNopFileManager(20, []byte{}), "test.db")
+	mng, err := NewLogManager(storage.NewNopFileManager(20, []byte{}), "test.db")
 	require.NoError(t, err)
 
 	err = mng.Commit(1)
@@ -75,7 +75,7 @@ func TestLogManager_Commit(t *testing.T) {
 }
 
 func TestLogManager_Rollback(t *testing.T) {
-	mng, err := NewLogManager(disk.NewNopFileManager(20, []byte{}), "test.db")
+	mng, err := NewLogManager(storage.NewNopFileManager(20, []byte{}), "test.db")
 	require.NoError(t, err)
 
 	err = mng.Rollback(1)
@@ -87,10 +87,10 @@ func TestLogManager_Rollback(t *testing.T) {
 }
 
 func TestLogManager_SetInt32(t *testing.T) {
-	mng, err := NewLogManager(disk.NewNopFileManager(36, []byte{}), "test.db")
+	mng, err := NewLogManager(storage.NewNopFileManager(36, []byte{}), "test.db")
 	require.NoError(t, err)
 
-	block := disk.NewBlock("test", 0)
+	block := storage.NewBlock("test", 0)
 
 	lsn, err := mng.SetInt32(1, block, 0, 10, 20)
 	require.NoError(t, err)
@@ -109,10 +109,10 @@ func TestLogManager_SetInt32(t *testing.T) {
 }
 
 func TestLogManager_SetString(t *testing.T) {
-	mng, err := NewLogManager(disk.NewNopFileManager(44, []byte{}), "test.db")
+	mng, err := NewLogManager(storage.NewNopFileManager(44, []byte{}), "test.db")
 	require.NoError(t, err)
 
-	block := disk.NewBlock("test", 0)
+	block := storage.NewBlock("test", 0)
 
 	lsn, err := mng.SetString(1, block, 0, "hoge", "fuga")
 	require.NoError(t, err)
@@ -134,7 +134,7 @@ func TestLogIterator_Next(t *testing.T) {
 		name  string
 		data  []byte
 		bsize int
-		block *disk.Block
+		block *storage.Block
 		want  [][]byte
 	}{
 		{
@@ -145,7 +145,7 @@ func TestLogIterator_Next(t *testing.T) {
 				0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
 			},
 			bsize: 20,
-			block: disk.NewBlock("test", 0),
+			block: storage.NewBlock("test", 0),
 			want: [][]byte{
 				{0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01},
 			},
@@ -160,7 +160,7 @@ func TestLogIterator_Next(t *testing.T) {
 				0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
 			},
 			bsize: 28,
-			block: disk.NewBlock("test", 0),
+			block: storage.NewBlock("test", 0),
 			want: [][]byte{
 				{0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x01}, // commit
 				{0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01}, // start
@@ -176,7 +176,7 @@ func TestLogIterator_Next(t *testing.T) {
 				0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
 			},
 			bsize: 28,
-			block: disk.NewBlock("test", 1),
+			block: storage.NewBlock("test", 1),
 			want: [][]byte{
 				{0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x01}, // commit
 				{0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01}, // start
@@ -188,7 +188,7 @@ func TestLogIterator_Next(t *testing.T) {
 
 	for _, tt := range testcases {
 		t.Run(tt.name, func(t *testing.T) {
-			itr, err := NewLogIterator(disk.NewNopFileManager(tt.bsize, tt.data), tt.block)
+			itr, err := NewLogIterator(storage.NewNopFileManager(tt.bsize, tt.data), tt.block)
 			require.NoError(t, err)
 
 			for _, expect := range tt.want {

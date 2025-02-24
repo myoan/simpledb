@@ -3,9 +3,9 @@ package main
 import (
 	"encoding/binary"
 	"errors"
-	"simpledb/disk"
 	"simpledb/log"
 	logrecord "simpledb/log/record"
+	"simpledb/storage"
 	"sync"
 )
 
@@ -21,11 +21,11 @@ var (
 )
 
 type ConcurrencyManager struct {
-	lockTable map[disk.Block]LockState
+	lockTable map[storage.Block]LockState
 	mu        sync.Mutex
 }
 
-func (cm *ConcurrencyManager) SLock(block *disk.Block) error {
+func (cm *ConcurrencyManager) SLock(block *storage.Block) error {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
@@ -41,7 +41,7 @@ func (cm *ConcurrencyManager) SLock(block *disk.Block) error {
 	return nil
 }
 
-func (cm *ConcurrencyManager) XLock(block *disk.Block) error {
+func (cm *ConcurrencyManager) XLock(block *storage.Block) error {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
@@ -52,7 +52,7 @@ func (cm *ConcurrencyManager) XLock(block *disk.Block) error {
 	return nil
 }
 
-func (cm *ConcurrencyManager) Unlock(block *disk.Block) {
+func (cm *ConcurrencyManager) Unlock(block *storage.Block) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
@@ -70,7 +70,7 @@ type Transaction struct {
 	lm     log.TxLogger
 	bm     *BufferManager
 	cm     *ConcurrencyManager
-	locked map[disk.Block]struct{}
+	locked map[storage.Block]struct{}
 }
 
 func NewTransaction(id int, lm log.TxLogger, cm *ConcurrencyManager, bm *BufferManager) *Transaction {
@@ -79,7 +79,7 @@ func NewTransaction(id int, lm log.TxLogger, cm *ConcurrencyManager, bm *BufferM
 		lm:     lm,
 		cm:     cm,
 		bm:     bm,
-		locked: make(map[disk.Block]struct{}),
+		locked: make(map[storage.Block]struct{}),
 	}
 }
 
@@ -159,7 +159,7 @@ func (tx *Transaction) Rollback() error {
 	return nil
 }
 
-func (tx *Transaction) GetInt32(block *disk.Block, offset int) (int32, error) {
+func (tx *Transaction) GetInt32(block *storage.Block, offset int) (int32, error) {
 	tx.cm.SLock(block)
 	defer func() {
 		tx.cm.Unlock(block)
@@ -174,7 +174,7 @@ func (tx *Transaction) GetInt32(block *disk.Block, offset int) (int32, error) {
 	return buf.Contents.GetInt32(offset)
 }
 
-func (tx *Transaction) GetString(block *disk.Block, offset int) (string, error) {
+func (tx *Transaction) GetString(block *storage.Block, offset int) (string, error) {
 	tx.cm.SLock(block)
 	defer func() {
 		tx.cm.Unlock(block)
@@ -188,7 +188,7 @@ func (tx *Transaction) GetString(block *disk.Block, offset int) (string, error) 
 	return buf.Contents.GetString(offset)
 }
 
-func (tx *Transaction) SetInt32(block *disk.Block, offset int, n int32) error {
+func (tx *Transaction) SetInt32(block *storage.Block, offset int, n int32) error {
 	tx.cm.XLock(block)
 
 	tx.locked[*block] = struct{}{}
@@ -221,7 +221,7 @@ func (tx *Transaction) SetInt32(block *disk.Block, offset int, n int32) error {
 	return nil
 }
 
-func (tx *Transaction) SetString(block *disk.Block, offset int, v string) error {
+func (tx *Transaction) SetString(block *storage.Block, offset int, v string) error {
 	tx.cm.XLock(block)
 
 	tx.locked[*block] = struct{}{}

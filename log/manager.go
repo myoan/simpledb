@@ -2,8 +2,8 @@ package log
 
 import (
 	"errors"
-	"simpledb/disk"
 	"simpledb/log/record"
+	"simpledb/storage"
 )
 
 type Logger interface {
@@ -17,20 +17,20 @@ type TxLogger interface {
 	Start(txid int) error
 	Commit(txid int) error
 	Rollback(txid int) error
-	SetInt32(txid int, block *disk.Block, offset int, old, new int32) (int, error)
-	SetString(txid int, block *disk.Block, offset int, old, new string) (int, error)
+	SetInt32(txid int, block *storage.Block, offset int, old, new int32) (int, error)
+	SetString(txid int, block *storage.Block, offset int, old, new string) (int, error)
 }
 
 type LogManager struct {
-	fileMng    disk.FileManager
+	fileMng    storage.FileManager
 	fileName   string
-	page       *disk.Page
-	currentBlk *disk.Block
+	page       *storage.Page
+	currentBlk *storage.Block
 	CurrentLSN int
 	savedLSN   int
 }
 
-func NewLogManager(fm disk.FileManager, filename string) (*LogManager, error) {
+func NewLogManager(fm storage.FileManager, filename string) (*LogManager, error) {
 	loglen, err := fm.Length(filename)
 	if err != nil {
 		return nil, err
@@ -39,24 +39,24 @@ func NewLogManager(fm disk.FileManager, filename string) (*LogManager, error) {
 	lm := &LogManager{
 		fileMng:  fm,
 		fileName: filename,
-		page:     disk.NewPage(fm.Blocksize()),
+		page:     storage.NewPage(fm.Blocksize()),
 	}
 
-	var currentblk *disk.Block
+	var currentblk *storage.Block
 	if loglen == 0 {
 		currentblk, err = lm.appendNewBlock()
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		currentblk = disk.NewBlock(filename, loglen-1)
+		currentblk = storage.NewBlock(filename, loglen-1)
 		fm.Read(currentblk, lm.page)
 	}
 	lm.currentBlk = currentblk
 	return lm, nil
 }
 
-func (lm *LogManager) appendNewBlock() (*disk.Block, error) {
+func (lm *LogManager) appendNewBlock() (*storage.Block, error) {
 	block, err := lm.fileMng.Append(lm.fileName)
 	if err != nil {
 		return nil, err
@@ -133,7 +133,7 @@ func (lm *LogManager) Start(txid int) error {
 	// set start log record
 	// <START, txid>
 
-	p := disk.NewPage(8)
+	p := storage.NewPage(8)
 	err := p.SetInt32(0, record.Instruction_START)
 	if err != nil {
 		return err
@@ -149,7 +149,7 @@ func (lm *LogManager) Start(txid int) error {
 }
 
 func (lm *LogManager) Commit(txid int) error {
-	p := disk.NewPage(8)
+	p := storage.NewPage(8)
 	err := p.SetInt32(0, record.Instruction_COMMIT)
 	if err != nil {
 		return err
@@ -165,7 +165,7 @@ func (lm *LogManager) Commit(txid int) error {
 }
 
 func (lm *LogManager) Rollback(txid int) error {
-	p := disk.NewPage(8)
+	p := storage.NewPage(8)
 	err := p.SetInt32(0, record.Instruction_ROLLBACK)
 	if err != nil {
 		return err
@@ -180,10 +180,10 @@ func (lm *LogManager) Rollback(txid int) error {
 	return nil
 }
 
-func (lm *LogManager) SetInt32(txid int, block *disk.Block, offset int, old, new int32) (int, error) {
+func (lm *LogManager) SetInt32(txid int, block *storage.Block, offset int, old, new int32) (int, error) {
 	// <SETINT32, txid, filename, blknum, offset, oldvalue, newvalue>
 	size := 24 + len(block.Filename)
-	p := disk.NewPage(size)
+	p := storage.NewPage(size)
 	cur := offset
 	err := p.SetInt32(cur, record.Instruction_SETINT32)
 	if err != nil {
@@ -223,10 +223,10 @@ func (lm *LogManager) SetInt32(txid int, block *disk.Block, offset int, old, new
 	return size, err
 }
 
-func (lm *LogManager) SetString(txid int, block *disk.Block, offset int, old, new string) (int, error) {
+func (lm *LogManager) SetString(txid int, block *storage.Block, offset int, old, new string) (int, error) {
 	// <SETSTRING, txid, filename, blknum, offset, oldvalue, newvalue>
 	size := 24 + len(block.Filename) + len(old) + len(new)
-	p := disk.NewPage(size)
+	p := storage.NewPage(size)
 	cur := offset
 	err := p.SetInt32(cur, record.Instruction_SETSTRING)
 	if err != nil {
@@ -267,14 +267,14 @@ func (lm *LogManager) SetString(txid int, block *disk.Block, offset int, old, ne
 }
 
 type LogIterator struct {
-	fileMng    disk.FileManager
-	block      *disk.Block
-	page       *disk.Page
+	fileMng    storage.FileManager
+	block      *storage.Block
+	page       *storage.Page
 	currentPos int
 }
 
-func NewLogIterator(fm disk.FileManager, block *disk.Block) (*LogIterator, error) {
-	page := disk.NewPage(fm.Blocksize())
+func NewLogIterator(fm storage.FileManager, block *storage.Block) (*LogIterator, error) {
+	page := storage.NewPage(fm.Blocksize())
 	fm.Read(block, page)
 	b, err := page.GetInt32(0)
 	if err != nil {
@@ -297,7 +297,7 @@ func (i *LogIterator) HasNext() bool {
 func (i *LogIterator) Next() ([]byte, error) {
 	if i.currentPos >= i.fileMng.Blocksize() {
 		// iterates order from the last block to the first block
-		nextblock := disk.NewBlock(i.block.Filename, i.block.Num-1)
+		nextblock := storage.NewBlock(i.block.Filename, i.block.Num-1)
 		i.fileMng.Read(nextblock, i.page)
 		b, err := i.page.GetInt32(0)
 		if err != nil {

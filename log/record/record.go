@@ -2,7 +2,7 @@ package record
 
 import (
 	"encoding/binary"
-	"simpledb/disk"
+	"simpledb/storage"
 )
 
 const (
@@ -79,8 +79,8 @@ func (r *SetInt32Record) Read(data []byte) {
 	r.NewValue = int32(binary.BigEndian.Uint32(data[24+filelen : 28+filelen]))
 }
 
-func (r *SetInt32Record) Block() *disk.Block {
-	return &disk.Block{
+func (r *SetInt32Record) Block() *storage.Block {
+	return &storage.Block{
 		Filename: r.Filename,
 		Num:      r.BlkNum,
 	}
@@ -107,8 +107,8 @@ func (r *SetStringRecord) Read(data []byte) {
 	r.NewValue = string(data[28+filelen+ovaluelen : 24+filelen+ovaluelen+nvaluelen])
 }
 
-func (r *SetStringRecord) Block() *disk.Block {
-	return &disk.Block{
+func (r *SetStringRecord) Block() *storage.Block {
+	return &storage.Block{
 		Filename: r.Filename,
 		Num:      r.BlkNum,
 	}

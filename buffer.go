@@ -2,8 +2,8 @@ package main
 
 import (
 	"errors"
-	"simpledb/disk"
 	"simpledb/log"
+	"simpledb/storage"
 	"time"
 )
 
@@ -20,7 +20,7 @@ type BufferManager struct {
 	Available int
 	pool      []*Buffer
 	final     int
-	fm        disk.FileManager
+	fm        storage.FileManager
 	lm        *log.LogManager
 	count     int
 }
@@ -33,7 +33,7 @@ func WithFinalizeTime(ms int) BufferManagerOptions {
 	}
 }
 
-func NewBufferManager(fm disk.FileManager, lm *log.LogManager, bufCnt int, opts ...BufferManagerOptions) *BufferManager {
+func NewBufferManager(fm storage.FileManager, lm *log.LogManager, bufCnt int, opts ...BufferManagerOptions) *BufferManager {
 	pool := make([]*Buffer, bufCnt)
 	for i := 0; i < bufCnt; i++ {
 		pool[i] = NewBuffer(fm, lm)
@@ -55,7 +55,7 @@ func NewBufferManager(fm disk.FileManager, lm *log.LogManager, bufCnt int, opts 
 	return mng
 }
 
-func (bm *BufferManager) GetBuf(block *disk.Block) (*Buffer, error) {
+func (bm *BufferManager) GetBuf(block *storage.Block) (*Buffer, error) {
 	for _, buf := range bm.pool {
 		if buf.block != nil && buf.block.Equals(block) {
 			return buf, nil
@@ -73,7 +73,7 @@ func (bm *BufferManager) FlushAll(txnum int) {
 }
 
 // Pin 指定したblockをbufferに読み込む
-func (bm *BufferManager) Pin(block *disk.Block) (*Buffer, error) {
+func (bm *BufferManager) Pin(block *storage.Block) (*Buffer, error) {
 	// check if the block is already in the buffer pool
 	for _, bp := range bm.pool {
 		if bp.block != nil && bp.block.Equals(block) {
@@ -119,17 +119,17 @@ func (bm *BufferManager) Unpin(buf *Buffer) {
 }
 
 type Buffer struct {
-	Contents *disk.Page
-	fm       disk.FileManager
+	Contents *storage.Page
+	fm       storage.FileManager
 	lm       *log.LogManager
-	block    *disk.Block
+	block    *storage.Block
 	pincnt   int
 	txnum    int
 	lsn      int
 }
 
-func NewBuffer(fm disk.FileManager, lm *log.LogManager) *Buffer {
-	c := disk.NewPage(int(fm.Blocksize()))
+func NewBuffer(fm storage.FileManager, lm *log.LogManager) *Buffer {
+	c := storage.NewPage(int(fm.Blocksize()))
 	return &Buffer{
 		fm:       fm,
 		lm:       lm,
@@ -140,7 +140,7 @@ func NewBuffer(fm disk.FileManager, lm *log.LogManager) *Buffer {
 	}
 }
 
-func (b *Buffer) Block() *disk.Block {
+func (b *Buffer) Block() *storage.Block {
 	return b.block
 }
 
